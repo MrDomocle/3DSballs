@@ -96,7 +96,7 @@ void collideBalls(ball (*balls)[MAX_BALLS]) {
 
 void updateBall(ball* b, float gX, float gY) {
     if (b->life == 0) return;
-    b->life--;
+    // b->life--;
 
     // wall collisions
     if (b->x < RADIUS) {
@@ -124,11 +124,13 @@ void updateBall(ball* b, float gX, float gY) {
     b->y += DELTA*b->vy;
 }
 
-ball* spawnBall(ball (*balls)[MAX_BALLS]) {
+ball* spawnBall(ball (*balls)[MAX_BALLS], float x, float y) {
     ball *ptr = NULL;
     for (int i = 0; i < MAX_BALLS; i++) {
         if ((*balls)[i].life <= 0) {
             ptr = &(*balls)[i];
+            (*ptr).x = x;
+            (*ptr).y = y;
             (*ptr).vx = 0;
             (*ptr).vy = 0;
             (*ptr).clr = randomCol();
@@ -254,7 +256,7 @@ int main() {
             lastTouch.py = touch.py;
             last2ndTouch.px = touch.px;
             last2ndTouch.py = touch.py;
-            dragging = spawnBall(&balls);
+            dragging = spawnBall(&balls, touch.px, touch.py);
             flickFrames++;
         }
         else if (kUp & KEY_TOUCH) { // End of drag
