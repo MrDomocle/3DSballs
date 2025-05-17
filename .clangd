@@ -1,6 +1,0 @@
-CompileFlags:
-  Add: [
-    "-IC:/msys64/opt/devkitpro/libctru/include",
-    "-I/c/msys64/opt/devkitpro/libctru/include",
-    "-Iinclude"
-  ]

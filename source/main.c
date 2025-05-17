@@ -41,7 +41,7 @@ ball* spawnBall(ball (*balls)[MAX_BALLS], float x, float y) {
 }
 void letGoBall(ball *b, float x, float y, float px, float py) {
     if (b == NULL) return;
-    b->life = LIFETIME+(rand()%40);
+    b->life = 1;
     b->vx = (x-px)/DELTA;
     b->vy = (y-py)/DELTA;
 }
@@ -62,7 +62,7 @@ void populateBalls(ball (*balls)[MAX_BALLS], int a) {
         (*balls)[i].y=rand()%SCREEN_H;
         (*balls)[i].vx=rand()%25;
         (*balls)[i].vy=rand()%25;
-        (*balls)[i].life = LIFETIME+(rand()%40);
+        (*balls)[i].life = 1;
         
         (*balls)[i].clr = randomCol();
         a--;
@@ -77,7 +77,6 @@ void drawBalls(ball (*balls)[MAX_BALLS], ball *dragging) {
 }
 
 int main() {
-    ball balls[MAX_BALLS];
     srand(time(NULL));
     
     populateBalls(&balls, 128);
@@ -104,6 +103,8 @@ int main() {
     last2ndTouch.px = 0;
     last2ndTouch.py = 0;
 
+    Thread tickThr = threadCreate(tickBalls, NULL, 4096, 0x3F, -2, true);
+
     while (aptMainLoop())
     {
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
@@ -121,11 +122,11 @@ int main() {
         hidCircleRead(&c);
         hidCstickRead(&cs);
 
-        bounciness = BOUNCINESS_BASE + ((float)cs.dy/CIRCLE_MAX)*0.5f;
-        globalGX += GSCALE*(float)c.dx/CIRCLE_MAX;
-        globalGY -= GSCALE*(float)c.dy/CIRCLE_MAX;
+        bounciness = BOUNCINESS_BASE + ((float)cs.dy/CPAD_MAX)*0.5f;
+        globalGX += GRAVITY*(float)c.dx/CPAD_MAX;
+        globalGY -= GRAVITY*(float)c.dy/CPAD_MAX;
 
-        tickBalls(&balls);
+        
         drawBalls(&balls, dragging);
 
         //Scan all the inputs. This should be done once for each frame
@@ -151,8 +152,10 @@ int main() {
         hidTouchRead(&touch);
         // Start of drag
         if (kDown & KEY_TOUCH && kHeld & KEY_L) { // L held - move star
-            star s = {touch.px, touch.py, STAR_STRENGTH};
-            gStar = &s;
+            gStar.x = touch.px;
+            gStar.y = touch.py;
+            gStar.strength = STAR_STRENGTH;
+            gStar.enabled = 1;
         }
         else if (kDown & KEY_TOUCH) {
             lastTouch.px = touch.px;
@@ -166,12 +169,16 @@ int main() {
                 letGoBall(dragging, lastTouch.px, lastTouch.py, last2ndTouch.px, last2ndTouch.py);
                 dragging = NULL;
             }
-            else gStar = NULL; // was dragging star
+            else gStar.enabled = 0; // was dragging star
         }
         else { // During drag
             if (dragging != NULL) {
                 (*dragging).x = touch.px;
                 (*dragging).y = touch.py;
+            }
+            if (gStar.enabled) {
+                gStar.x = touch.px;
+                gStar.y = touch.py;
             }
             last2ndTouch.px = lastTouch.px;
             last2ndTouch.py = lastTouch.py;
@@ -181,8 +188,6 @@ int main() {
 
         if (kDown & KEY_START) break; // break in order to return to hbmenu
 
-        if (gStar != NULL) printf("\x1b[2;0H %04f;%04f", gStar->x, gStar->y);
-
         // Flush and swap framebuffers
         gfxFlushBuffers();
         gfxSwapBuffers();
@@ -190,7 +195,10 @@ int main() {
         //Wait for VBlank
         C3D_FrameEnd(0);
     }
+    
+    shutting_down = 1;
 
+    threadJoin(tickThr, U64_MAX);
     C2D_Fini();
 	C3D_Fini();
 	gfxExit();

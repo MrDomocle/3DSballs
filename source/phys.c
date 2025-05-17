@@ -1,6 +1,7 @@
 #include <3ds.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdio.h>
 
 #include "globals.h"
 #include "phys.h"
@@ -8,7 +9,7 @@
 float bounciness = BOUNCINESS_BASE;
 float globalGX = 0;
 float globalGY = GRAVITY;
-star *gStar = NULL;
+star gStar = {0,0,0,0};
 
 // vectors
 void norm(float *x, float *y) {
@@ -22,22 +23,23 @@ void norm(float *x, float *y) {
 // physics
 void collideBalls(ball (*balls)[MAX_BALLS]) {
     for (int j = 0; j < MAX_BALLS; j++) {
+        if ((*balls)[j].life <= 0) continue;
         ball *b1 = &(*balls)[j];
-        if (b1->life <= 0) continue;
 
-        for (int i = 0; i < MAX_BALLS; i++) {
+        for (int i = j+1; i < MAX_BALLS; i++) {
+            if (!(*balls)[i].life) continue;
+
             ball *b2 = &(*balls)[i];
-            // don't collide with self & dead balls
-            if (b1 == b2 || b2->life <= 0) continue;
+            // calculate vector
+            float dx = b2->x - b1->x;
+            float dy = b2->y - b1->y;
 
-            float dist = distance2(b1->x, b1->y, b2->x, b2->y);
+            float dist = magnitude2(dx, dy);
             if (dist < TWORADIUS2) {
                 // this ball is worth it, so run sqrt
                 dist = sqrtf(dist);
 
-                // calculate & normalise vector between the balls
-                float dx = b2->x - b1->x;
-                float dy = b2->y - b1->y;
+                // normalise vector between the balls
                 norm(&dx, &dy);
 
                 b1->vx += -dx*bounciness*(2*RADIUS - dist)/DELTA;
@@ -84,27 +86,40 @@ void updateBall(ball* b, float gX, float gY) {
     b->y += DELTA*b->vy;
 }
 
-void tickBalls(ball (*balls)[MAX_BALLS]) {
-
-    collideBalls(balls);
-    for (int i = 0; i < MAX_BALLS; i++) {
-        // collideBalls(balls); // this makes everything extremely slow but makes the simulation less jittery
-        if ((*balls)[i].life == 0) continue;
-        // get gravity for ball
-        float gX, gY;
-        if (gStar != NULL) {
-            float dx = gStar->x - (*balls)[i].x;
-            float dy = gStar->y - (*balls)[i].y;
-            // magnitude of gravity
-            float m = gStar->strength / magnitude2(dx, dy);
-
-            norm(&dx, &dy);
-            gX = dx*m;
-            gY = dy*m;
-        } else {
+void tickBalls(void *v) {
+    u64 framenumber = 0;
+    u64 t_start = 0;
+    u64 delta_start = svcGetSystemTick();
+    while (!shutting_down) {
+        delta_start = svcGetSystemTick();
+        if (!(framenumber % PHYS_STEPS_PER_FRAME)) t_start = osGetTime();
+        collideBalls(&balls);
+        for (int i = 0; i < MAX_BALLS; i++) {
+            if (balls[i].life == 0) continue;
+            // get gravity for ball
+            float gX, gY;
             gX = globalGX;
             gY = globalGY;
+            if (gStar.enabled) {
+                float dx = gStar.x - balls[i].x;
+                float dy = gStar.y - balls[i].y;
+
+                // magnitude of gravity
+                float m = magnitude2(dx, dy) / gStar.strength;
+
+                norm(&dx, &dy);
+                gX += dx*m;
+                gY += dy*m;
+            }
+            updateBall(&balls[i], gX, gY);
         }
-        updateBall(&(*balls)[i], gX, gY);
+
+        if (!((framenumber - PHYS_STEPS_PER_FRAME) % PHYS_STEPS_PER_FRAME)) {
+            consoleClear();
+            u64 frametime = osGetTime() - t_start;
+            printf("\x1b[2;0H %lld; DELTA: %f", frametime, DELTA);
+        }
+        framenumber++;
+        svcSleepThread(FRAME_NS/PHYS_STEPS_PER_FRAME);
     }
 }
