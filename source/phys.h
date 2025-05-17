@@ -1,13 +1,15 @@
+#pragma once
+
 #include <3ds.h>
 #include <math.h>
 
-#define MAX_BALLS 32
-#define DELTA 0.2f
+#define MAX_BALLS 128
+#define PHYS_STEPS_PER_FRAME 10
 #define BOUNCINESS_BASE 0.9f
-#define GRAVITY 9.81f
-#define STAR_STRENGTH 100.0f
-#define GSCALE 10.0f
+#define GRAVITY 981.0f
+#define STAR_STRENGTH 10.0f
 #define TWORADIUS2 RADIUS*RADIUS*4
+#define DELTA FRAME_S/PHYS_STEPS_PER_FRAME
 
 typedef struct {
     float x;
@@ -21,12 +23,15 @@ typedef struct {
     float x;
     float y;
     float strength;
+    u8 enabled;
 } star;
 
+extern float delta;
+extern u8 ticksSinceDeltaChange;
 extern float bounciness;
 extern float globalGX;
 extern float globalGY;
-extern star *gStar;
+extern star gStar;
 
 // vector helpers
 static inline float distance(float x1, float y1, float x2, float y2) {
@@ -45,4 +50,4 @@ void norm(float *x, float *y);
 
 void collideBalls(ball (*balls)[MAX_BALLS]);
 void updateBall(ball* b, float gX, float gY);
-void tickBalls(ball (*balls)[MAX_BALLS]);
+void tickBalls(void *v);

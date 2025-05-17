@@ -2,6 +2,7 @@ bin/
 build/
 lib/
 .*/
+.*
 *.3dsx
 *.smdh
 *.elf
