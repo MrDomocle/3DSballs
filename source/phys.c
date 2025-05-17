@@ -6,6 +6,7 @@
 #include "globals.h"
 #include "phys.h"
 
+float delta = DELTA;
 float bounciness = BOUNCINESS_BASE;
 float globalGX = 0;
 float globalGY = GRAVITY;
