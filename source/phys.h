@@ -26,8 +26,6 @@ typedef struct {
     u8 enabled;
 } star;
 
-extern float delta;
-extern u8 ticksSinceDeltaChange;
 extern float bounciness;
 extern float globalGX;
 extern float globalGY;
